@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Falinwa Project Estimator</title>
+  <meta name="description" content="Falinwa Odoo services estimator" />
+  <style>
+    :root{--orange:#F18815;--black:#151517;--gray:#424345;--purple:#994A80;--white:#FFFFFF}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Arial,Helvetica,sans-serif;background:var(--white);color:var(--black)}
+    .container{max-width:1100px;margin:0 auto;padding:24px}
+    h1{font-size:clamp(22px,3vw,32px);font-weight:800;margin:0 0 16px}
+    .pill{display:inline-block;border:1px solid var(--orange);color:var(--orange);padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}
+    .card{border:1px solid var(--gray);border-radius:14px;background:linear-gradient(135deg,#fff,#f9f9f9);padding:16px;margin:0 0 24px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+    label{display:block;margin:0 0 6px;font-weight:700}
+    input[type="number"],select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--purple);background:#fff}
+    .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px}
+    .opt-label{display:flex;align-items:center;gap:8px;color:var(--gray)}
+    .opt-label input{cursor:pointer}
+    .table-wrap{border:1px solid var(--gray);border-radius:14px;overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.06);margin-top:20px}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    thead{background:var(--black);color:#fff}
+    th,td{padding:12px 10px;border-bottom:1px solid #eee}
+    th:first-child,td:first-child{text-align:left}
+    tbody tr:nth-child(odd){background:#fefaf7}
+    .hours{font-size:12px;color:var(--orange);font-weight:600}
+    .check{color:var(--orange);font-weight:800}
+    .price-row{background:var(--purple);color:#fff;font-weight:700}
+    .hint{color:var(--gray);font-size:14px}
+    .footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px;color:var(--gray);font-size:12px}
+  </style>
+  <!-- React 18 + ReactDOM 18 UMD -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel for in-browser JSX transform (ok for GitHub Pages; switch to build later if desired) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Project Estimator <span class="pill">Falinwa</span></h1>
+    <div id="root"></div>
+  </div>
+
+  <script type="text/babel">
+    const COLORS = { orange:'#F18815', black:'#151517', gray:'#424345', purple:'#994A80', white:'#FFFFFF' };
+
+    const BASE_PRICES = {
+      Starter: { existing: 682.35, new: 580.0 },
+      Basic:   { existing: 3600,   new: 3060  },
+      Standard:{ existing: 7000,   new: 5950  },
+      Custom:  { existing: 12500,  new: 10625 },
+      Pro:     { existing: 25000,  new: 21250 },
+    };
+
+    const HOURS = { Starter:'4h', Basic:'25h', Standard:'50h', Custom:'100h', Pro:'200h' };
+
+    const FEATURES = [
+      'Dedicated Consultant',
+      'Project Management',
+      'Email + Phone Support',
+      'Training & Coaching',
+      'Configuration',
+      'Data Import Assistance',
+      'On-site Consultation',
+      'App Customization',
+      'Customizations (forms, reports, workflow)',
+      'Development',
+      'Performance Issues',
+    ];
+
+    const AVAIL = {
+      Starter: ['Dedicated Consultant','Email + Phone Support','Training & Coaching','Configuration'],
+      Basic:   ['Dedicated Consultant','Project Management','Email + Phone Support','Training & Coaching','Configuration','Data Import Assistance'],
+      Standard:['Dedicated Consultant','Project Management','Email + Phone Support','Training & Coaching','Configuration','Data Import Assistance','App Customization','Customizations (forms, reports, workflow)','Development','Performance Issues'],
+      Custom:  ['Dedicated Consultant','Project Management','Email + Phone Support','Training & Coaching','Configuration','Data Import Assistance','On-site Consultation','App Customization','Customizations (forms, reports, workflow)','Development','Performance Issues'],
+      Pro:     ['Dedicated Consultant','Project Management','Email + Phone Support','Training & Coaching','Configuration','Data Import Assistance','On-site Consultation','App Customization','Customizations (forms, reports, workflow)','Development','Performance Issues'],
+    };
+
+    const COUNTRY = {
+      Indonesia: { mult: 15000, currency: 'Rp' },
+      Japan:     { mult: 1,     currency: 'US$' },
+      France:    { mult: 1,     currency: 'US$' }, // same as Japan
+      China:     { mult: 1,     currency: 'US$' },
+      'Hong Kong':{ mult: 1,    currency: 'US$' }, // same as China
+      Singapore: { mult: 1,     currency: 'US$' },
+      Vietnam:   { mult: 0.33,  currency: 'US$' },
+      Cambodia:  { mult: 0.33,  currency: 'US$' }, // same as Vietnam
+    };
+
+    function useFormState(){
+      const [companySize, setCompanySize] = React.useState('');
+      const [clientType, setClientType] = React.useState('');
+      const [country, setCountry] = React.useState('');
+      const [needs, setNeeds] = React.useState({ development:false, customization:false, training:false, support:false });
+      return { companySize, setCompanySize, clientType, setClientType, country, setCountry, needs, setNeeds };
+    }
+
+    function selectColumns(size, needs){
+      let cols = Object.keys(BASE_PRICES);
+      const s = parseInt(size||'0',10);
+      if(s > 5) cols = cols.filter(c => c !== 'Starter');
+      if(needs.development) cols = cols.filter(c => c !== 'Starter' && c !== 'Basic');
+      else if(needs.customization) cols = cols.filter(c => c !== 'Starter');
+      return cols;
+    }
+
+    function priceFor(tier, clientType, country){
+      const base = BASE_PRICES[tier][clientType||'existing'];
+      const info = COUNTRY[country] || { mult:1, currency:'US$' };
+      return { amount: base * info.mult, currency: info.currency };
+    }
+
+    function Estimator(){
+      const f = useFormState();
+      const ready = !!f.companySize && !!f.clientType && !!f.country;
+      const cols = React.useMemo(() => ready ? selectColumns(f.companySize, f.needs) : [], [ready, f.companySize, f.needs]);
+
+      return (
+        <>
+          <div className="card">
+            <div className="grid">
+              <div>
+                <label htmlFor="companySize">Company Size (employees)</label>
+                <input id="companySize" type="number" min="1" placeholder="e.g. 12" value={f.companySize} onChange={(e)=>f.setCompanySize(e.target.value)} />
+              </div>
+              <div>
+                <label htmlFor="clientType">Client Type</label>
+                <select id="clientType" value={f.clientType} onChange={(e)=>f.setClientType(e.target.value)}>
+                  <option value="">Select...</option>
+                  <option value="new">New Client</option>
+                  <option value="existing">Existing Client</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="country">Country</label>
+                <select id="country" value={f.country} onChange={(e)=>f.setCountry(e.target.value)}>
+                  <option value="">Select...</option>
+                  {Object.keys(COUNTRY).map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{marginTop:12}}>
+              <div style={{fontWeight:700, marginBottom:6}}>Select Your Needs</div>
+              <div className="opts">
+                {Object.keys(f.needs).map(k => (
+                  <label key={k} className="opt-label">
+                    <input type="checkbox" checked={f.needs[k]} onChange={(e)=>f.setNeeds(prev=>({...prev,[k]:e.target.checked}))} />
+                    {k.charAt(0).toUpperCase()+k.slice(1)}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {!ready ? (
+            <div className="hint">Fill <strong>Company Size</strong>, <strong>Client Type</strong>, and <strong>Country</strong> to see packages.</div>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Features</th>
+                    {cols.map(c => (
+                      <th key={c}><div style={{fontWeight:700}}>{c}</div><div className="hours">{HOURS[c]}</div></th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {FEATURES.map((feat, idx) => (
+                    <tr key={feat} style={{background: idx%2 ? 'transparent' : '#fefaf7'}}>
+                      <td>{feat}</td>
+                      {cols.map(c => (
+                        <td key={c+feat}>{AVAIL[c].includes(feat) ? <span className="check">✔</span> : ''}</td>
+                      ))}
+                    </tr>
+                  ))}
+                  <tr className="price-row">
+                    <td>Price</td>
+                    {cols.map(c => {
+                      const p = priceFor(c, f.clientType, f.country);
+                      return <td key={'price-'+c} style={{fontFamily:'monospace',textAlign:'center'}}>{p.amount.toLocaleString()} {p.currency}</td>
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+              <div className="footer">
+                <div>Prices auto-adjust by country. France = Japan, Hong Kong = China, Cambodia = Vietnam.</div>
+                <div>Logic: Size &gt; 5 hides Starter; Development hides Starter &amp; Basic; Customization hides Starter.</div>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<Estimator />);
+  </script>
+</body>
+</html>
