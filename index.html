@@ -11,15 +11,12 @@
     body{margin:0;font-family:'Quicksand',Arial,Helvetica,sans-serif;color:var(--ink)}
     .page{max-width:1180px;margin:0 auto;padding:28px 20px}
     h1{font-weight:900;font-size:clamp(28px,2.8vw,42px);margin:0 0 10px}
-    .subtitle{color:var(--muted);margin:0 0 24px;font-size:16px;font-weight:600}
-
-    /* two columns: LEFT form, RIGHT prices */
     .layout{display:grid;grid-template-columns:1fr;gap:24px}
     @media(min-width:980px){.layout{grid-template-columns:440px 1fr;align-items:start}}
     .col-form{order:1}
     .col-summary{order:2}
 
-    /* summary card (right) */
+    /* Summary card */
     .summary{border:1px solid var(--line);background:#fff;border-radius:10px;overflow:hidden;position:sticky;top:18px}
     .summary-header{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line)}
     .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#eef8f8;color:#1b8f91;font-weight:800;font-size:13px}
@@ -30,11 +27,10 @@
     .kpi{display:flex;gap:12px;align-items:baseline;font-size:16px}
     .kpi-hours{color:var(--accent);font-weight:900;font-size:17px}
     .kpi-price{color:var(--purple);font-weight:900;font-size:17px}
-    .cta{display:block;background:var(--purple);color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-weight:800;cursor:pointer;font-size:16px;width:calc(100% - 36px);margin:18px auto 20px;text-decoration:none}
+    .cta{display:block;background:var(--purple);color:#fff;text-align:center;padding:14px 24px;border-radius:8px;font-weight:800;cursor:pointer;font-size:16px;width:90%;margin:18px auto 20px;text-decoration:none}
     .cta:hover{opacity:.95}
-    .muted{color:var(--muted);font-size:13px;margin:0 18px 16px}
 
-    /* form on left (stacked, no box) */
+    /* Form */
     .form{padding:6px 0}
     .form-section{margin:22px 0}
     label{display:block;font-size:15px;font-weight:700;margin:0 0 8px}
@@ -46,16 +42,20 @@
     .radio-group, .needs-group{display:flex;flex-direction:column;gap:12px}
     .radio-option{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;color:var(--ink)}
 
-    /* Custom round pickers (radios + checkboxes) */
-    .radio-option input{
-      appearance:none; -webkit-appearance:none;
+    /* FIX: perfectly centered custom round pickers (radios + checkboxes) */
+    .radio-option input[type="radio"],
+    .radio-option input[type="checkbox"]{
+      appearance:none;-webkit-appearance:none;
       width:18px;height:18px;border:2px solid var(--accent);border-radius:50%;
-      display:inline-block;position:relative;outline:none;cursor:pointer;background:#fff;
-      vertical-align:middle;
+      display:grid;place-content:center;background:#fff;cursor:pointer;margin:0;vertical-align:middle;
     }
-    .radio-option input:checked::after{
-      content:'';position:absolute;inset:3px;border-radius:50%;background:var(--accent);
+    .radio-option input[type="radio"]::before,
+    .radio-option input[type="checkbox"]::before{
+      content:""; width:10px;height:10px;border-radius:50%; background:var(--accent);
+      transform:scale(0); transition:120ms transform ease-in-out;
     }
+    .radio-option input[type="radio"]:checked::before,
+    .radio-option input[type="checkbox"]:checked::before{ transform:scale(1); }
     .radio-option input:focus{box-shadow:0 0 0 3px rgba(241,136,21,.25)}
 
     .hidden{display:none}
@@ -90,7 +90,6 @@
           <div class="form-section">
             <label>Besoins</label>
             <div class="needs-group">
-              <!-- multiple selections allowed -->
               <label class="radio-option"><input type="checkbox" name="need" value="development"> Development</label>
               <label class="radio-option"><input type="checkbox" name="need" value="customization"> Customization</label>
               <label class="radio-option"><input type="checkbox" name="need" value="training"> Training</label>
@@ -108,15 +107,13 @@
             <span class="badge">Tarifs disponibles</span>
           </div>
           <ul class="tier-list" id="tiers"></ul>
-          <p class="muted">France = Japon, Hong Kong = Chine, Cambodge = Vietnam. Indonésie en Rp.</p>
-          <a class="cta" href="https://www.falinwa.com/contactus">Contact us</a>
+          <a class="cta" href="https://www.falinwa.com/contactus" target="_blank" rel="noopener">Contact us</a>
         </div>
       </aside>
     </div>
   </div>
 
   <script>
-    /* ------- Data ------- */
     const BASE_PRICES = {
       Starter:{existing:682.35,new:580},
       Basic:{existing:3600,new:3060},
@@ -125,76 +122,69 @@
       Pro:{existing:25000,new:21250},
     };
     const HOURS = {Starter:'4h',Basic:'25h',Standard:'50h',Custom:'100h',Pro:'200h'};
-    const COUNTRY = {
+    const COUNTRY={
       Indonesia:{mult:15000,currency:'Rp'}, Japan:{mult:1,currency:'US$'},
       France:{mult:1,currency:'US$'}, China:{mult:1,currency:'US$'},
       'Hong Kong':{mult:1,currency:'US$'}, Singapore:{mult:1,currency:'US$'},
       Vietnam:{mult:0.33,currency:'US$'}, Cambodia:{mult:0.33,currency:'US$'}
     };
-    const TIERS = ['Starter','Basic','Standard','Custom','Pro'];
+    const TIERS=['Starter','Basic','Standard','Custom','Pro'];
 
-    /* ------- DOM ------- */
-    const sizeEl = document.getElementById('size');
-    const countryEl = document.getElementById('country');
-    const tiersEl = document.getElementById('tiers');
-    const summary = document.querySelector('.col-summary');
+    const sizeEl=document.getElementById('size');
+    const countryEl=document.getElementById('country');
+    const tiersEl=document.getElementById('tiers');
+    const summary=document.querySelector('.col-summary');
 
-    // Populate country dropdown (default Indonesia)
+    // Populate countries, default Indonesia
     Object.keys(COUNTRY).forEach(c=>{
       const o=document.createElement('option');
-      o.value=c; o.textContent=c; countryEl.appendChild(o);
+      o.value=c; o.textContent=c;
+      countryEl.appendChild(o);
     });
-    countryEl.value = 'Indonesia';
+    countryEl.value='Indonesia';
 
-    /* ------- Logic ------- */
-    function allowedTiers(size, needsArr){
-      let allowed = [...TIERS];
-      if (size > 5) allowed = allowed.filter(t => t !== 'Starter');
-      if (Array.isArray(needsArr) && needsArr.includes('development')) {
-        allowed = allowed.filter(t => t !== 'Starter' && t !== 'Basic');
-      }
-      if (Array.isArray(needsArr) && needsArr.includes('customization')) {
-        allowed = allowed.filter(t => t !== 'Starter');
-      }
+    function allowedTiers(size,needs){
+      let allowed=[...TIERS];
+      if(size>5) allowed=allowed.filter(t=>t!=='Starter');
+      if(Array.isArray(needs) && needs.includes('development'))
+        allowed=allowed.filter(t=>t!=='Starter' && t!=='Basic');
+      if(Array.isArray(needs) && needs.includes('customization'))
+        allowed=allowed.filter(t=>t!=='Starter');
       return allowed;
     }
-
-    function priceFor(tier, client, country){
-      const base = BASE_PRICES[tier][client || 'existing'];
-      const info = COUNTRY[country] || {mult:1, currency:'US$'};
-      return {amount: base * info.mult, currency: info.currency};
+    function priceFor(tier,client,country){
+      const base=BASE_PRICES[tier][client||'existing'];
+      const info=COUNTRY[country]||{mult:1,currency:'US$'};
+      return {amount:base*info.mult,currency:info.currency};
     }
 
     function update(){
-      const size = parseInt(sizeEl.value || '0', 10);
-      const client = document.querySelector('input[name="client"]:checked')?.value;
-      const country = countryEl.value;
-      const needs = Array.from(document.querySelectorAll('input[name="need"]:checked')).map(i=>i.value);
+      const size=parseInt(sizeEl.value||'0',10);
+      const client=document.querySelector('input[name="client"]:checked')?.value;
+      const country=countryEl.value;
+      const needs=[...document.querySelectorAll('input[name="need"]:checked')].map(el=>el.value);
 
-      if (!size || !client || !country) {
+      if(!size || !client || !country){
         summary.classList.add('hidden');
         return;
       }
-
-      const allowed = allowedTiers(size, needs);
-      tiersEl.innerHTML = '';
+      const allowed=allowedTiers(size,needs);
+      tiersEl.innerHTML='';
       allowed.forEach(t=>{
-        const p = priceFor(t, client, country);
-        const li = document.createElement('li');
-        li.className = 'tier-item';
-        li.innerHTML = `
-          <span class="tier-name">${t}</span>
-          <div class="kpi">
-            <span class="kpi-hours">${HOURS[t]}</span>
-            <span class="kpi-price">${p.amount.toLocaleString()} ${p.currency}</span>
-          </div>`;
+        const p=priceFor(t,client,country);
+        const li=document.createElement('li');
+        li.className='tier-item';
+        li.innerHTML=`<span class="tier-name">${t}</span>
+                      <div class="kpi">
+                        <span class="kpi-hours">${HOURS[t]}</span>
+                        <span class="kpi-price">${p.amount.toLocaleString()} ${p.currency}</span>
+                      </div>`;
         tiersEl.appendChild(li);
       });
-
       summary.classList.remove('hidden');
     }
 
-    // Reactivity
+    // Bind updates
     document.querySelectorAll('input,select').forEach(el=>{
       el.addEventListener('input', update);
       el.addEventListener('change', update);
